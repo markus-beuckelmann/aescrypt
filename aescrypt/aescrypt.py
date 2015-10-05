@@ -15,7 +15,11 @@ from hashlib import sha256, md5
 class PasswordsDoNotMatch(Exception):
 	pass
 
+class DecryptionError(Exception):
+	pass
+
 pad = lambda x, n: x + (n - len(x) % n) * chr(n - len(x) % n)
+unpad = lambda x: x[:-ord(x[len(x) - 1:])]
 
 def encrypt(path, *args, **kwargs):
 
@@ -54,4 +58,49 @@ def encrypt(path, *args, **kwargs):
 		f.write(ciphertext)
 
 	os.remove(path)
+	return True
+
+def decrypt(path, *args, **kwargs):
+
+	if not os.path.exists(path):
+		raise OSError('Path "%s" does not exist.' % path)
+
+	if not kwargs.has_key('password') or not kwargs['password']:
+		kwargs['password'] = getpass('Password: ')
+
+	with open(path, 'rb') as f:
+		content = f.read()
+
+	key, iv = sha256(kwargs['password']).digest(), content[:16]
+	cipher = AES.new(key, AES.MODE_CBC, IV = iv)
+
+	plaincontent = unpad(cipher.decrypt(content[16:]))
+	if not plaincontent:
+		raise DecryptionError('Something went wrong. Is your password correct?')
+
+	md5hash, typeflag, content = plaincontent[:16], plaincontent[16], plaincontent[17:]
+
+	if typeflag == 'D':
+		tarpath = tempfile.mktemp()
+		with open(tarpath, 'wb') as f:
+			f.write(content)
+
+		if not tarfile.is_tarfile(tarpath):
+			os.remove(tarpath)
+			raise DecryptionError('Something went wrong. Is your password correct?')
+
+		archive = tarfile.open(tarpath)
+		archive.extractall()
+		os.remove(path)
+
+	else:
+
+		if not md5(content).digest() == md5hash:
+			raise DecryptionError('Something went wrong. Is your password correct?')
+		else:
+			plainpath = path.split('.aes')[0]
+			with open(plainpath, 'wb') as f:
+				f.write(content)
+			os.remove(path)
+
 	return True
