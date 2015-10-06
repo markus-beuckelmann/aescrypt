@@ -1,12 +1,26 @@
 #!/usr/bin/env python2
 # -*- coding: UTF-8 -*-
 
+'''
+Usage:
+	aescrypt.py encrypt <paths>...
+	aescrypt.py decrypt <paths>...
+	aescrypt.py (-h | --help | --version)
+
+Options:
+	-h --help	Shows the help screen.
+	-v --version	Prints the version and exits.
+	encrypt		Encryption mode.
+	decrypt		Decryption mode.
+'''
+
 import os
 import sys
 import tarfile
 import tempfile
 import shutil
 
+from docopt import docopt
 from getpass import getpass
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
@@ -104,3 +118,28 @@ def decrypt(path, *args, **kwargs):
 			os.remove(path)
 
 	return True
+
+if __name__ == '__main__':
+
+	os.sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)))
+	from aescrypt import __version__
+
+	args = docopt(__doc__, version = __version__)
+
+	if args['encrypt']:
+		for p in args['<paths>']:
+			try:
+				encrypt(p)
+			except OSError as e:
+				sys.exit('%s Quitting.' % str(e))
+			except PasswordsDoNotMatch as e:
+				sys.exit('%s Quitting.' % str(e))
+
+	if args['decrypt']:
+		for p in args['<paths>']:
+			try:
+				decrypt(p)
+			except OSError as e:
+				sys.exit('%s Quitting.' % str(e))
+			except DecryptionError as e:
+				sys.exit('%s Quitting.' % str(e))
